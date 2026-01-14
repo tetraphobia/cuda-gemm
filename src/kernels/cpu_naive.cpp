@@ -1,7 +1,7 @@
 #include "cpu_naive.h"
 
 /**
- * Multiply two matrices `A` and `B` using CPU only
+ * Multiply two matrices `A` and `B` using CPU
  * and store result in matrix `C`.
  *
  * Assumes all matrices are 1D arrays with row-major ordering.
@@ -10,7 +10,7 @@
  * Matrix `B` should have `k` rows and `n` columns.
  * Resulting matrix `C` should have `m` rows and `n` columns.
  */
-void multiply_cpu_naive(float *A, float *B, float *C, int m, int k, int n) {
+void multiply_cpu_naive(const float *A, const float *B, float *C, int m, int k, int n) {
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
       C[i * n + j] = 0;

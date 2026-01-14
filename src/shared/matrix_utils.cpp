@@ -11,6 +11,12 @@ void init_matrix(float *A, int size) {
   }
 }
 
+void clear_matrix(float *A, int size) {
+  for (int i = 0; i < size; i++) {
+    A[i] = 0;
+  }
+}
+
 void print_matrix(float *A, int m, int n) {
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
