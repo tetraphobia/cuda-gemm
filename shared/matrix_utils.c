@@ -19,11 +19,3 @@ void print_matrix(float *A, int m, int n) {
     printf("\n");
   }
 }
-
-int main(void) {
-    // Test these functions
-    float * A = (float *) malloc(sizeof(float) * 6);
-
-    init_matrix(A, 6);
-    print_matrix(A, 3, 2);
-}

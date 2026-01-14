@@ -1,18 +1,24 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include "../../shared/matrix_utils.h"
+#include "cpu_naive.h"
 
-#define MATRIX_SIZE 6
-#define M 3
-#define K 2
-#define N 3
+/**
+ * Multiply two matrices `A` and `B` using CPU only
+ * and store result in matrix `C`.
+ *
+ * Assumes all matrices are 1D arrays with row-major ordering.
+ *
+ * Matrix `A` should have `m` rows and `k` columns.
+ * Matrix `B` should have `k` rows and `n` columns.
+ * Resulting matrix `C` should have `m` rows and `n` columns.
+ */
+void multiply_cpu_naive(float *A, float *B, float *C, int m, int k, int n) {
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      C[i * n + j] = 0;
 
-int main(void) {
-    float * A = (float *) malloc(sizeof(float) * MATRIX_SIZE);
-    float * B = (float *) malloc(sizeof(float) * MATRIX_SIZE);
-    init_matrix(A, MATRIX_SIZE);
-    init_matrix(B, MATRIX_SIZE);
-    print_matrix(A, M, K);
-    print_matrix(B, K, N);
-    printf("Hello world\n");
+      for (int l = 0; l < k; l++) {
+        C[i * n + j] += A[i * k + l] * B[l * n + j];
+      }
+    }
+  }
 }
+

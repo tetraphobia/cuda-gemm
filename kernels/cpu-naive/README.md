@@ -1,4 +1,10 @@
 # CPU (Naive)
 Naive GEMM implementation using the CPU.
 ## Building
-WIP
+```
+make
+```
+## Running
+```
+./test_kernel
+```
