@@ -15,7 +15,6 @@ int main(void) {
   init_matrix(A, MATRIX_SIZE);
   init_matrix(B, MATRIX_SIZE);
 
-  printf("TEST CPU NAIVE\n____________________\n");
   printf("A:\n");
   print_matrix(A, M, K);
   printf("\n");
@@ -23,9 +22,9 @@ int main(void) {
   printf("B:\n");
   print_matrix(B, K, N);
   printf("\n");
-  multiply_cpu_naive(A, B, C, M, K, N);
 
-  printf("AB:\n");
+  printf("TEST CPU NAIVE\n--------------\n");
+  multiply_cpu_naive(A, B, C, M, K, N);
   print_matrix(C, M, N);
   printf("\n");
 

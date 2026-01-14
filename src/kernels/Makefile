@@ -1,18 +1,27 @@
-CC		:=	gcc
-CFLAGS	:=
-LDFLAGS	:=
+CC			:=	nvcc
 
-TARGET := test_kernels
+CFLAGS		:=
+NVFLAGS 	:=
+LDFLAGS		:=
 
-SRCS	:= $(wildcard *.c) ../shared/matrix_utils.c
-OBJS	:= $(SRCS:.c=.o)
+TARGET		:= test_kernels
+
+CPP_SRCS	:= $(wildcard *.cpp) $(wildcard ../shared/*.cpp)
+CPP_OBJS	:= $(CPP_SRCS:.cpp=.o)
+
+CU_SRCS 	:= $(wildcard *.cu)
+CU_OBJS 	:= $(CU_SRCS:.cu=.o)
+
+OBJS		:= $(CPP_OBJS) $(CU_OBJS)
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 
-%.o: %.c
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c $< -o $@
+%.o: %.cu
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
