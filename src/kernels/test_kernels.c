@@ -1,4 +1,4 @@
-#include "../../shared/matrix_utils.h"
+#include "../shared/matrix_utils.h"
 #include "cpu_naive.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,6 +15,7 @@ int main(void) {
   init_matrix(A, MATRIX_SIZE);
   init_matrix(B, MATRIX_SIZE);
 
+  printf("TEST CPU NAIVE\n____________________\n");
   printf("A:\n");
   print_matrix(A, M, K);
   printf("\n");

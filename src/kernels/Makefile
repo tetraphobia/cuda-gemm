@@ -2,9 +2,9 @@ CC		:=	gcc
 CFLAGS	:=
 LDFLAGS	:=
 
-TARGET := test_kernel
+TARGET := test_kernels
 
-SRCS	:= test_kernel.c cpu_naive.c ../../shared/matrix_utils.c
+SRCS	:= $(wildcard *.c) ../shared/matrix_utils.c
 OBJS	:= $(SRCS:.c=.o)
 
 all: $(TARGET)
