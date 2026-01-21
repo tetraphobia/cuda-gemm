@@ -74,6 +74,7 @@ int main(void) {
   printf("--------------\n");
 
   print_matrix(ACTUAL, M, N);
+  printf("\n");
   clear_matrix(ACTUAL, M * N);
 
   // SRAM CUDA test
@@ -100,6 +101,7 @@ int main(void) {
   printf("--------------\n");
 
   print_matrix(ACTUAL, M, N);
+  printf("\n");
   clear_matrix(ACTUAL, M * N);
 
   // SRAM + RF CUDA Test
@@ -126,6 +128,7 @@ int main(void) {
   printf("--------------\n");
 
   print_matrix(ACTUAL, M, N);
+  printf("\n");
   clear_matrix(ACTUAL, M * N);
 
   return 0;
