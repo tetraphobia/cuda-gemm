@@ -2,6 +2,7 @@
 #include "../src/kernels/cuda_naive.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
+#include "../src/kernels/cuda_shuffle.h"
 #include "../src/kernels/types.h"
 
 #include "../src/shared/matrix_utils.h"
@@ -104,3 +105,28 @@ void rf_block(nvbench::state &state) {
   cudaFree(C);
 }
 NVBENCH_BENCH(rf_block);
+
+void warp_shuffle(nvbench::state &state) {
+  float *A, *B, *C;
+
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+
+  cudaMallocManaged(&A, sizeof(float) * M * K);
+  cudaMallocManaged(&B, sizeof(float) * K * N);
+  cudaMallocManaged(&C, sizeof(float) * M * N);
+
+  init_matrix(A, M * K);
+  init_matrix(B, K * N);
+  clear_matrix(C, M * N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_warp_shuffle((const float *)A, (const float *)B, C, M, K, N,
+                           &args);
+  });
+
+  cudaFree(A);
+  cudaFree(B);
+  cudaFree(C);
+}
+NVBENCH_BENCH(warp_shuffle);
