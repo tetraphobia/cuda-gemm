@@ -1,56 +1,65 @@
-#include "cuda_shared.cuh"
+#include "cuda_shared.h"
+#include "stdio.h"
 
-#define TILE_SIZE 16
+#define TILE_M 16
+#define TILE_K 16
+#define TILE_N 16
 
 /**
  * Multiply two matrices `A` and `B` using CUDA with shared
  * memory tiling and store result in matrix `C`.
  *
  * Assumes all matrices are 1D arrays with row-major ordering.
- *
- * Matrix `A` should have `m` rows and `k` columns.
- * Matrix `B` should have `k` rows and `n` columns.
- * Resulting matrix `C` should have `m` rows and `n` columns.
- *
- * Adapted from https://kharshit.github.io/blog/2024/06/07/matrix-multiplication-cuda
  */
-__global__ void multiply_cuda_shared(const float *A, const float *B, float *C, int m, int k,
-                                     int n) {
-  __shared__ float shared_A[TILE_SIZE][TILE_SIZE];
-  __shared__ float shared_B[TILE_SIZE][TILE_SIZE];
+__global__ void _shared_kernel(const float *A, const float *B, float *C, int m,
+                               int k, int n) {
+  __shared__ float shared_A[TILE_M][TILE_K];
+  __shared__ float shared_B[TILE_K][TILE_N];
 
-  int globalRow = blockIdx.y * TILE_SIZE + threadIdx.y;
-  int globalCol = blockIdx.x * TILE_SIZE + threadIdx.x;
+  int globalRow = blockIdx.y * TILE_M + threadIdx.y;
+  int globalCol = blockIdx.x * TILE_N + threadIdx.x;
 
   int row = threadIdx.y;
   int col = threadIdx.x;
 
   float sum = 0.0f;
 
-  for (int i = 0; i < (k + TILE_SIZE - 1) / TILE_SIZE; i++) {
+  for (int t = 0; t < (k + TILE_K - 1) / TILE_K; t++) {
 
-    // Load A tile into shared memory
-    if (globalRow < m && (i * TILE_SIZE + col) < k)
-      shared_A[row][col] = A[globalRow * k + i * TILE_SIZE + col];
-    else
-      shared_A[row][col] = 0.0f;
+    // Load both tiles into shared memory
+    int aRow = globalRow;
+    int aCol = t * TILE_K + col;
+    shared_A[row][col] = (aRow < m && aCol < k) ? A[aRow * k + aCol] : 0.0f;
 
-    // Load B tile into shared memory
-    if ((i * TILE_SIZE + row) < k && globalCol < n)
-      shared_B[row][col] = B[(i * TILE_SIZE + row) * n + globalCol];
-    else
-      shared_B[row][col] = 0.0f;
+    int bRow = t * TILE_K + row;
+    int bCol = globalCol;
+    shared_B[row][col] = (bRow < k && bCol < n) ? B[bRow * n + bCol] : 0.0f;
 
     __syncthreads();
 
-    // Compute partial product
-    for (int j = 0; j < TILE_SIZE; j++)
-      sum += shared_A[row][j] * shared_B[j][col];
+    // Compute partial product for this tile
+    for (int i = 0; i < TILE_K; i++)
+      sum += shared_A[row][i] * shared_B[i][col];
 
     __syncthreads();
   }
 
-  // Write result to global memory
+  // Write the result to global memory
   if (globalRow < m && globalCol < n)
     C[globalRow * n + globalCol] = sum;
+}
+
+void multiply_cuda_shared(const float *A, const float *B, float *C, int m,
+                          int k, int n, kernel_args_t *args) {
+  dim3 block(TILE_N, TILE_M);
+  dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
+
+  if (args->stream != 0)
+    _shared_kernel<<<grid, block, 0, args->stream>>>(A, B, C, m, k, n);
+  else
+    _shared_kernel<<<grid, block>>>(A, B, C, m, k, n);
+
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess)
+    printf("Shared kernel launch error: %s\n", cudaGetErrorString(err));
 }

@@ -10,7 +10,6 @@ add_executable(benchmark
   src/kernels/cuda_naive.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
-  src/kernels/cuda_warp_shuffle.cu
   src/shared/matrix_utils.cpp
 )
 
