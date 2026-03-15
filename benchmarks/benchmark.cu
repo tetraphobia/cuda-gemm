@@ -86,7 +86,7 @@ void rf_block(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(rf_block);
+// NVBENCH_BENCH(rf_block);
 
 void warp_shuffle(nvbench::state &state) {
   float *A, *B, *C;
@@ -104,18 +104,21 @@ void warp_shuffle(nvbench::state &state) {
 // NVBENCH_BENCH(warp_shuffle);
 
 void cougar(nvbench::state &state) {
+  float alpha = 1.0f;
+  float beta = 0.0f;
+
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
   alloc_and_init(&A, &B, &C);
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
-    multiply_cougar((const float *)A, (const float *)B, C, M, K, N, &args);
+    multiply_cougar(alpha, A, B, beta, C, M, K, N, &args);
   });
 
   free_matrices(A, B, C);
 }
-// NVBENCH_BENCH(cougar);
+NVBENCH_BENCH(cougar);
 
 void shuffle_nonshared(nvbench::state &state) {
   float *A, *B, *C;
@@ -131,7 +134,7 @@ void shuffle_nonshared(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 // NVBENCH_BENCH(shuffle_nonshared);
-//
+
 void shuffle_systolic(nvbench::state &state) {
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
@@ -145,7 +148,7 @@ void shuffle_systolic(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(shuffle_systolic);
+// NVBENCH_BENCH(shuffle_systolic);
 
 void cutlass_bench(nvbench::state &state) {
   float *A, *B, *C;
