@@ -86,7 +86,7 @@ void rf_block(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-// NVBENCH_BENCH(rf_block);
+NVBENCH_BENCH(rf_block);
 
 void warp_shuffle(nvbench::state &state) {
   float *A, *B, *C;

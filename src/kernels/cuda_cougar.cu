@@ -29,19 +29,22 @@ __global__ void _cougar_kernel(float alpha, float *A, float *B, float beta,
   const uint cCol = blockIdx.y;
 
   const uint threadsPerRow = BLOCK_N / TILE_N;
-
   const uint threadCol = threadIdx.x % threadsPerRow;
   const uint threadRow = threadIdx.x / threadsPerRow;
 
   const uint numThreads = (BLOCK_M / TILE_M) * (BLOCK_N / TILE_N);
-  const uint innerRowA = threadIdx.x / BLOCK_K;
-  const uint innerColA = threadIdx.x % BLOCK_K;
-  const uint innerRowB = threadIdx.x / BLOCK_N;
-  const uint innerColB = threadIdx.x % BLOCK_N;
 
-  // How many rows each load iteration covers
-  const uint strideA = numThreads / BLOCK_K;
-  const uint strideB = numThreads / BLOCK_N;
+  // float4 load indices for A (BLOCK_M x BLOCK_K)
+  // Each thread loads 4 contiguous floats along the K dimension
+  const uint innerRowA = threadIdx.x / (BLOCK_K / 4);
+  const uint innerColA = threadIdx.x % (BLOCK_K / 4);
+  const uint strideA = numThreads / (BLOCK_K / 4);
+
+  // float4 load indices for B (BLOCK_K x BLOCK_N)
+  // Each thread loads 4 contiguous floats along the N dimension
+  const uint innerRowB = threadIdx.x / (BLOCK_N / 4);
+  const uint innerColB = threadIdx.x % (BLOCK_N / 4);
+  const uint strideB = numThreads / (BLOCK_N / 4);
 
   // Set pointers to starting positions
   A += cRow * BLOCK_M * k;
@@ -51,23 +54,31 @@ __global__ void _cougar_kernel(float alpha, float *A, float *B, float beta,
   // 2D register accumulator
   float acc[TILE_M][TILE_N] = {{0.0f}};
 
+  const float4 zero4 = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+
   for (int block = 0; block < k; block += BLOCK_K) {
-    // Coalesce-load shared_A
+    // Vectorized coalesce-load shared_A (float4 along K)
     for (uint offset = 0; offset < BLOCK_M; offset += strideA) {
-      int aRow = cRow * BLOCK_M + innerRowA + offset;
-      int aCol = block + innerColA;
-      shared_A[(innerRowA + offset) * BLOCK_K + innerColA] =
-          (aRow < m && aCol < k) ? A[(innerRowA + offset) * k + innerColA]
-                                 : 0.0f;
+      uint row = innerRowA + offset;
+      int aRow = cRow * BLOCK_M + row;
+      float4 tmp =
+          (aRow < m)
+              ? reinterpret_cast<float4 *>(&A[row * k + innerColA * 4])[0]
+              : zero4;
+      reinterpret_cast<float4 *>(&shared_A[row * BLOCK_K + innerColA * 4])[0] =
+          tmp;
     }
 
-    // Coalesce-load shared_B
+    // Vectorized coalesce-load shared_B (float4 along N)
     for (uint offset = 0; offset < BLOCK_K; offset += strideB) {
-      int bRow = block + innerRowB + offset;
-      int bCol = cCol * BLOCK_N + innerColB;
-      shared_B[(innerRowB + offset) * BLOCK_N + innerColB] =
-          (bRow < k && bCol < n) ? B[(innerRowB + offset) * n + innerColB]
-                                 : 0.0f;
+      uint row = innerRowB + offset;
+      int bRow = block + row;
+      float4 tmp =
+          (bRow < k)
+              ? reinterpret_cast<float4 *>(&B[row * n + innerColB * 4])[0]
+              : zero4;
+      reinterpret_cast<float4 *>(&shared_B[row * BLOCK_N + innerColB * 4])[0] =
+          tmp;
     }
 
     __syncthreads();
