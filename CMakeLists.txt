@@ -12,6 +12,8 @@ CPMAddPackage(
 )
 find_package(CUDAToolkit REQUIRED)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(benchmark
   benchmarks/benchmark.cu
@@ -21,6 +23,8 @@ add_executable(benchmark
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
   src/kernels/cuda_shuffle.cu
+  src/kernels/cuda_shuffle_systolic.cu
+  src/kernels/cuda_shuffle_nonshared.cu
   src/kernels/cuda_shuffle_claude.cu
   src/shared/matrix_utils.cpp
 )
@@ -32,7 +36,9 @@ add_executable(test
   src/kernels/cuda_naive.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
+  src/kernels/cuda_shuffle_nonshared.cu
   src/kernels/cuda_shuffle.cu
+  src/kernels/cuda_shuffle_systolic.cu
   src/kernels/cuda_shuffle_claude.cu
 )
 

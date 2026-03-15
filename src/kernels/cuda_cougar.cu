@@ -13,7 +13,6 @@
 #define WARPS_PER_BLOCK (ROW_WARPS * COL_WARPS)
 #define CHUNK_SIZE (TILE_M / ROW_WARPS)
 
-
 /**
  * Multiply two matrices `A` and `B` using CUDA.
  * A modification of the shuffle_claude kernel.

@@ -4,6 +4,7 @@
 #include "../src/kernels/cuda_shared.h"
 #include "../src/kernels/cuda_shuffle.h"
 #include "../src/kernels/cuda_shuffle_claude.h"
+#include "../src/kernels/cuda_shuffle_nonshared.h"
 #include "../src/kernels/types.h"
 #include <cuda_runtime.h>
 #include <math.h>
@@ -251,6 +252,8 @@ int main(void) {
       {"warp_shuffle", multiply_warp_shuffle},
       {"shuffle_claude", multiply_shuffle_claude},
       {"cougar", multiply_cougar},
+      {"shuffle_nonshared", multiply_warp_shuffle_nonshared},
+      {"shuffle_systolic", multiply_warp_shuffle_nonshared},
   };
   int num_kernels = sizeof(kernels) / sizeof(kernels[0]);
   int num_dims = sizeof(TEST_DIMS) / sizeof(TEST_DIMS[0]);
