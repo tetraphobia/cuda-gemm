@@ -18,11 +18,11 @@
  */
 
 template <const uint BLOCK_M, const uint BLOCK_K, const uint BLOCK_N,
-          const uint TILE_M, const uint TILE_N>
-__global__ void _cougar_kernel(float alpha, float *A, float *B, float beta,
+          const uint TILE_M, const uint TILE_N, bool ALIGNED>
+__global__ void _cougar_kernel(float alpha, const float *A, const float *B, float beta,
                                float *C, int m, int k, int n) {
-  __shared__ float shared_A[BLOCK_M * BLOCK_K];
-  __shared__ float shared_B[BLOCK_K * BLOCK_N];
+  __shared__ __align__(16) float shared_A[BLOCK_M * BLOCK_K];
+  __shared__ __align__(16) float shared_B[BLOCK_K * BLOCK_N];
 
   // Block-level tile origin
   const uint cRow = blockIdx.x;
@@ -61,24 +61,38 @@ __global__ void _cougar_kernel(float alpha, float *A, float *B, float beta,
     for (uint offset = 0; offset < BLOCK_M; offset += strideA) {
       uint row = innerRowA + offset;
       int aRow = cRow * BLOCK_M + row;
-      float4 tmp =
-          (aRow < m)
-              ? reinterpret_cast<float4 *>(&A[row * k + innerColA * 4])[0]
-              : zero4;
-      reinterpret_cast<float4 *>(&shared_A[row * BLOCK_K + innerColA * 4])[0] =
-          tmp;
+      int aCol = innerColA * 4;
+      float4 tmp = zero4;
+      if (aRow < m) {
+        if (ALIGNED) {
+          tmp = reinterpret_cast<const float4 *>(&A[row * k + aCol])[0];
+        } else {
+          tmp.x = (aCol + 0 < k) ? A[row * k + aCol + 0] : 0.0f;
+          tmp.y = (aCol + 1 < k) ? A[row * k + aCol + 1] : 0.0f;
+          tmp.z = (aCol + 2 < k) ? A[row * k + aCol + 2] : 0.0f;
+          tmp.w = (aCol + 3 < k) ? A[row * k + aCol + 3] : 0.0f;
+        }
+      }
+      reinterpret_cast<float4 *>(&shared_A[row * BLOCK_K + aCol])[0] = tmp;
     }
 
     // Vectorized coalesce-load shared_B (float4 along N)
     for (uint offset = 0; offset < BLOCK_K; offset += strideB) {
       uint row = innerRowB + offset;
       int bRow = block + row;
-      float4 tmp =
-          (bRow < k)
-              ? reinterpret_cast<float4 *>(&B[row * n + innerColB * 4])[0]
-              : zero4;
-      reinterpret_cast<float4 *>(&shared_B[row * BLOCK_N + innerColB * 4])[0] =
-          tmp;
+      int bCol = innerColB * 4;
+      float4 tmp = zero4;
+      if (bRow < k) {
+        if (ALIGNED) {
+          tmp = reinterpret_cast<const float4 *>(&B[row * n + bCol])[0];
+        } else {
+          tmp.x = (bCol + 0 < n) ? B[row * n + bCol + 0] : 0.0f;
+          tmp.y = (bCol + 1 < n) ? B[row * n + bCol + 1] : 0.0f;
+          tmp.z = (bCol + 2 < n) ? B[row * n + bCol + 2] : 0.0f;
+          tmp.w = (bCol + 3 < n) ? B[row * n + bCol + 3] : 0.0f;
+        }
+      }
+      reinterpret_cast<float4 *>(&shared_B[row * BLOCK_N + bCol])[0] = tmp;
     }
 
     __syncthreads();
@@ -134,17 +148,27 @@ void multiply_cougar(float alpha, const float *A, const float *B, float beta,
   dim3 blockDim((BLOCK_M / TILE_M) * (BLOCK_N / TILE_N));
   dim3 gridDim(CEIL_DIV(m, BLOCK_M), CEIL_DIV(n, BLOCK_N));
 
-  float *A_ptr = (float *)A;
-  float *B_ptr = (float *)B;
-  float *C_ptr = (float *)C;
+  bool aligned = (k % 4 == 0) && (n % 4 == 0) &&
+                 ((unsigned long long)A % 16 == 0) &&
+                 ((unsigned long long)B % 16 == 0);
 
-  if (args->stream)
-    _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N>
-        <<<gridDim, blockDim, 0, args->stream>>>(alpha, A_ptr, B_ptr, beta,
-                                                 C_ptr, m, k, n);
-  else
-    _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N>
-        <<<gridDim, blockDim>>>(alpha, A_ptr, B_ptr, beta, C_ptr, m, k, n);
+  if (args->stream) {
+    if (aligned) {
+      _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N, true>
+          <<<gridDim, blockDim, 0, args->stream>>>(alpha, A, B, beta, C, m, k, n);
+    } else {
+      _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N, false>
+          <<<gridDim, blockDim, 0, args->stream>>>(alpha, A, B, beta, C, m, k, n);
+    }
+  } else {
+    if (aligned) {
+      _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N, true>
+          <<<gridDim, blockDim>>>(alpha, A, B, beta, C, m, k, n);
+    } else {
+      _cougar_kernel<BLOCK_M, BLOCK_K, BLOCK_N, TILE_M, TILE_N, false>
+          <<<gridDim, blockDim>>>(alpha, A, B, beta, C, m, k, n);
+    }
+  }
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
