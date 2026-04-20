@@ -1,10 +1,9 @@
 #include "../src/kernels/cpu_naive.h"
 #include "../src/kernels/cuda_coalesced.h"
-#include "../src/kernels/cuda_cougar.h"
 #include "../src/kernels/cuda_naive.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
-#include "../src/kernels/cuda_shuffle.h"
+#include "../src/kernels/cuda_tensor_core.h"
 #include "../src/kernels/types.h"
 
 #include "../src/shared/matrix_utils.h"
@@ -141,27 +140,7 @@ void rf_block(nvbench::state &state) {
 NVBENCH_BENCH(rf_block).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
                                              4096, 8192, 16384});
 
-// void warp_shuffle(nvbench::state &state) {
-//   const auto N = state.get_int64("N");
-//   const auto M = N;
-//   const auto K = N;
-
-//   float *A, *B, *C;
-//   kernel_args_t args = KERNEL_ARGS_DEFAULT;
-//   alloc_and_init(&A, &B, &C, M, K, N);
-
-//   state.exec([&](nvbench::launch &launch) {
-//     args.stream = launch.get_stream();
-//     multiply_warp_shuffle((const float *)A, (const float *)B, C, M, K, N,
-//     &args);
-//   });
-
-//   free_matrices(A, B, C);
-// }
-// NVBENCH_BENCH(warp_shuffle).add_int64_axis("N", {64, 128, 256, 512, 1024,
-// 2048, 4096, 8192, 16384});
-
-void cougar(nvbench::state &state) {
+void tensor_core(nvbench::state &state) {
   const auto N = state.get_int64("N");
   const auto M = N;
   const auto K = N;
@@ -172,13 +151,13 @@ void cougar(nvbench::state &state) {
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
-    multiply_cougar((const float *)A, (const float *)B, C, M, K, N, &args);
+    multiply_cuda_tensor_core((const float *)A, (const float *)B, C, M, K, N, &args);
   });
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(cougar).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
-                                           8192, 16384});
+NVBENCH_BENCH(tensor_core).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
+                                                4096, 8192, 16384});
 
 void cutlass_bench(nvbench::state &state) {
   const auto N = state.get_int64("N");
