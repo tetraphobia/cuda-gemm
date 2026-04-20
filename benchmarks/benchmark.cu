@@ -1,6 +1,7 @@
 #include "../src/kernels/cpu_naive.h"
 #include "../src/kernels/cuda_cougar.h"
 #include "../src/kernels/cuda_naive.h"
+#include "../src/kernels/cuda_coalesced.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
 #include "../src/kernels/cuda_shuffle.h"
@@ -56,6 +57,25 @@ void naive(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(naive).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                          8192});
+
+void coalesced(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  float *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_coalesced((const float *)A, (const float *)B, C, M, K, N, &args);
+  });
+
+  free_matrices(A, B, C);
+}
+NVBENCH_BENCH(coalesced).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
                                           8192});
 
 void shared(nvbench::state &state) {

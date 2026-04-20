@@ -18,6 +18,7 @@ add_executable(benchmark
   src/kernels/cpu_naive.cpp
   src/kernels/cuda_cougar.cu
   src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
   src/kernels/cuda_shuffle.cu
@@ -30,6 +31,7 @@ add_executable(test
   src/kernels/cpu_naive.cpp
   src/kernels/cuda_cougar.cu
   src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
   src/kernels/cuda_shuffle.cu

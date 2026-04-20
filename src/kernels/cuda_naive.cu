@@ -16,8 +16,8 @@
  */
 __global__ void _naive_kernel(const float *A, const float *B, float *C, int m,
                               int k, int n) {
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
+  int row = blockIdx.x * blockDim.x + threadIdx.x;
+  int col = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (row < m && col < n) {
     float sum = 0.0f;
@@ -34,7 +34,7 @@ void multiply_cuda_naive(const float *A, const float *B, float *C, int m, int k,
                          int n, kernel_args_t *args) {
 
   dim3 block(TILE_M, TILE_N);
-  dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
+  dim3 grid((m + TILE_M - 1) / TILE_M, (n + TILE_N - 1) / TILE_N);
 
   if (args->stream != NULL) {
     _naive_kernel<<<grid, block, 0, args->stream>>>(A, B, C, m, k, n);
