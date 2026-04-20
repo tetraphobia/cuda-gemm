@@ -1,23 +1,20 @@
 #include "../src/kernels/cpu_naive.h"
+#include "../src/kernels/cuda_cougar.h"
 #include "../src/kernels/cuda_naive.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
 #include "../src/kernels/cuda_shuffle.h"
-#include "../src/kernels/cuda_cougar.h"
 #include "../src/kernels/types.h"
 
 #include "../src/shared/matrix_utils.h"
-#include <cublas_v2.h>
 #include <cstdlib>
+#include <cublas_v2.h>
 #include <cutlass/gemm/device/gemm.h>
 #include <nvbench/nvbench.cuh>
 #include <stdexcept>
 
-#define M 4096
-#define K 4096
-#define N 4096
-
-static void alloc_and_init(float **d_A, float **d_B, float **d_C) {
+static void alloc_and_init(float **d_A, float **d_B, float **d_C, size_t M,
+                           size_t K, size_t N) {
   float *h_A = (float *)malloc(sizeof(float) * M * K);
   float *h_B = (float *)malloc(sizeof(float) * K * N);
 
@@ -43,9 +40,13 @@ static void free_matrices(float *d_A, float *d_B, float *d_C) {
 }
 
 void naive(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
@@ -54,12 +55,17 @@ void naive(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-// NVBENCH_BENCH(naive);
+NVBENCH_BENCH(naive).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                          8192});
 
 void shared(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
@@ -68,40 +74,57 @@ void shared(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-// NVBENCH_BENCH(shared);
+NVBENCH_BENCH(shared).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                           8192});
 
 void rf_block(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
-    multiply_cuda_rf_block((const float *)A, (const float *)B, C, M, K, N, &args);
+    multiply_cuda_rf_block((const float *)A, (const float *)B, C, M, K, N,
+                           &args);
   });
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(rf_block);
+NVBENCH_BENCH(rf_block).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
+                                             4096, 8192});
 
-void warp_shuffle(nvbench::state &state) {
-  float *A, *B, *C;
-  kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
+// void warp_shuffle(nvbench::state &state) {
+//   const auto N = state.get_int64("N");
+//   const auto M = N;
+//   const auto K = N;
 
-  state.exec([&](nvbench::launch &launch) {
-    args.stream = launch.get_stream();
-    multiply_warp_shuffle((const float *)A, (const float *)B, C, M, K, N, &args);
-  });
+//   float *A, *B, *C;
+//   kernel_args_t args = KERNEL_ARGS_DEFAULT;
+//   alloc_and_init(&A, &B, &C, M, K, N);
 
-  free_matrices(A, B, C);
-}
-NVBENCH_BENCH(warp_shuffle);
+//   state.exec([&](nvbench::launch &launch) {
+//     args.stream = launch.get_stream();
+//     multiply_warp_shuffle((const float *)A, (const float *)B, C, M, K, N,
+//     &args);
+//   });
+
+//   free_matrices(A, B, C);
+// }
+// NVBENCH_BENCH(warp_shuffle).add_int64_axis("N", {64, 128, 256, 512, 1024,
+// 2048, 4096, 8192});
 
 void cougar(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
   kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
@@ -110,11 +133,16 @@ void cougar(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(cougar);
+NVBENCH_BENCH(cougar).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                           8192});
 
 void cutlass_bench(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   using RowMajor = cutlass::layout::RowMajor;
   using Gemm = cutlass::gemm::device::Gemm<float, RowMajor, float, RowMajor,
@@ -122,9 +150,12 @@ void cutlass_bench(nvbench::state &state) {
   Gemm gemm_op;
 
   float alpha = 1.0f;
-  float beta  = 0.0f;
+  float beta = 0.0f;
 
-  Gemm::Arguments args({M, N, K}, {A, K}, {B, N}, {C, N}, {C, N}, {alpha, beta});
+  Gemm::Arguments args(
+      {static_cast<int>(M), static_cast<int>(N), static_cast<int>(K)},
+      {A, static_cast<int>(K)}, {B, static_cast<int>(N)},
+      {C, static_cast<int>(N)}, {C, static_cast<int>(N)}, {alpha, beta});
 
   // Warmup
   gemm_op(args, nullptr, nullptr);
@@ -139,28 +170,36 @@ void cutlass_bench(nvbench::state &state) {
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(cutlass_bench);
+NVBENCH_BENCH(cutlass_bench)
+    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192});
 
 void cublas_bench(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
   float *A, *B, *C;
-  alloc_and_init(&A, &B, &C);
+  alloc_and_init(&A, &B, &C, M, K, N);
 
   cublasHandle_t handle;
   cublasCreate(&handle);
 
   float alpha = 1.0f;
-  float beta  = 0.0f;
+  float beta = 0.0f;
 
   // Warmup — forces internal workspace allocation before timing starts
-  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K, &beta, C, N);
+  cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K,
+              &beta, C, N);
   cudaDeviceSynchronize();
 
   state.exec([&](nvbench::launch &launch) {
     cublasSetStream(handle, launch.get_stream());
-    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K, &beta, C, N);
+    cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K,
+                &beta, C, N);
   });
 
   cublasDestroy(handle);
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(cublas_bench);
+NVBENCH_BENCH(cublas_bench)
+    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192});
