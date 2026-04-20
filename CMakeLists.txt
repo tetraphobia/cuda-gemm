@@ -26,6 +26,19 @@ add_executable(benchmark
   src/shared/matrix_utils.cpp
 )
 
+add_executable(benchmark_lineinfo
+  benchmarks/benchmark.cu
+  src/kernels/cpu_naive.cpp
+  src/kernels/cuda_cougar.cu
+  src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
+  src/kernels/cuda_rf_block.cu
+  src/kernels/cuda_shared.cu
+  src/kernels/cuda_shuffle.cu
+  src/kernels/cuda_shuffle_claude.cu
+  src/shared/matrix_utils.cpp
+)
+
 add_executable(test
   test/test_kernels.cu
   src/kernels/cpu_naive.cpp
@@ -42,9 +55,23 @@ target_compile_options(benchmark PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> # make cutlass shut up
 )
 
+target_compile_options(benchmark_lineinfo PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo --expt-relaxed-constexpr> # make cutlass shut up AND compile with lineinfo for nsight
+)
+
+add_custom_target(lineinfo
+    DEPENDS benchmark_lineinfo
+    COMMENT "Build with -lineinfo for Nsight profiling"
+)
+
 target_link_libraries(benchmark
     nvbench::main
     nvidia::cutlass::cutlass
     CUDA::cublas
 )
 
+target_link_libraries(benchmark_lineinfo
+    nvbench::main
+    nvidia::cutlass::cutlass
+    CUDA::cublas
+)

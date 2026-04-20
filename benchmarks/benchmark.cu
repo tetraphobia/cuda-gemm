@@ -1,7 +1,7 @@
 #include "../src/kernels/cpu_naive.h"
+#include "../src/kernels/cuda_coalesced.h"
 #include "../src/kernels/cuda_cougar.h"
 #include "../src/kernels/cuda_naive.h"
-#include "../src/kernels/cuda_coalesced.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
 #include "../src/kernels/cuda_shuffle.h"
@@ -40,6 +40,29 @@ static void free_matrices(float *d_A, float *d_B, float *d_C) {
   cudaFree(d_C);
 }
 
+void cpu_naive_bench(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  float *h_A = (float *)malloc(sizeof(float) * M * K);
+  float *h_B = (float *)malloc(sizeof(float) * K * N);
+  float *h_C = (float *)malloc(sizeof(float) * M * N);
+
+  init_matrix(h_A, M * K);
+  init_matrix(h_B, K * N);
+  memset(h_C, 0, sizeof(float) * M * N);
+
+  state.exec(nvbench::exec_tag::sync, [&](nvbench::launch &launch) {
+    multiply_cpu_naive(h_A, h_B, h_C, M, K, N);
+  });
+
+  free(h_A);
+  free(h_B);
+  free(h_C);
+}
+NVBENCH_BENCH(cpu_naive_bench).add_int64_axis("N", {64, 128, 256, 512, 1024});
+
 void naive(nvbench::state &state) {
   const auto N = state.get_int64("N");
   const auto M = N;
@@ -57,7 +80,7 @@ void naive(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(naive).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
-                                          8192});
+                                          8192, 16384});
 
 void coalesced(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -70,13 +93,14 @@ void coalesced(nvbench::state &state) {
 
   state.exec([&](nvbench::launch &launch) {
     args.stream = launch.get_stream();
-    multiply_cuda_coalesced((const float *)A, (const float *)B, C, M, K, N, &args);
+    multiply_cuda_coalesced((const float *)A, (const float *)B, C, M, K, N,
+                            &args);
   });
 
   free_matrices(A, B, C);
 }
-NVBENCH_BENCH(coalesced).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
-                                          8192});
+NVBENCH_BENCH(coalesced).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
+                                              4096, 8192, 16384});
 
 void shared(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -95,7 +119,7 @@ void shared(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(shared).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
-                                           8192});
+                                           8192, 16384});
 
 void rf_block(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -115,7 +139,7 @@ void rf_block(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(rf_block).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
-                                             4096, 8192});
+                                             4096, 8192, 16384});
 
 // void warp_shuffle(nvbench::state &state) {
 //   const auto N = state.get_int64("N");
@@ -135,7 +159,7 @@ NVBENCH_BENCH(rf_block).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
 //   free_matrices(A, B, C);
 // }
 // NVBENCH_BENCH(warp_shuffle).add_int64_axis("N", {64, 128, 256, 512, 1024,
-// 2048, 4096, 8192});
+// 2048, 4096, 8192, 16384});
 
 void cougar(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -154,7 +178,7 @@ void cougar(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(cougar).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
-                                           8192});
+                                           8192, 16384});
 
 void cutlass_bench(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -191,7 +215,7 @@ void cutlass_bench(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(cutlass_bench)
-    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192});
+    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384});
 
 void cublas_bench(nvbench::state &state) {
   const auto N = state.get_int64("N");
@@ -222,4 +246,4 @@ void cublas_bench(nvbench::state &state) {
   free_matrices(A, B, C);
 }
 NVBENCH_BENCH(cublas_bench)
-    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192});
+    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384});
