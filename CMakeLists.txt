@@ -20,6 +20,7 @@ add_executable(benchmark
   src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
+  src/kernels/cuda_shared_32.cu
   src/kernels/cuda_tensor_core.cu
   src/shared/matrix_utils.cpp
 )
@@ -31,6 +32,7 @@ add_executable(benchmark_lineinfo
   src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
+  src/kernels/cuda_shared_32.cu
   src/kernels/cuda_tensor_core.cu
   src/shared/matrix_utils.cpp
 )
@@ -42,6 +44,7 @@ add_executable(test
   src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
+  src/kernels/cuda_shared_32.cu
   src/kernels/cuda_tensor_core.cu
 )
 

@@ -3,6 +3,7 @@
 #include "../src/kernels/cuda_naive.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
+#include "../src/kernels/cuda_shared_32.h"
 #include "../src/kernels/cuda_tensor_core.h"
 #include "../src/kernels/types.h"
 
@@ -119,6 +120,25 @@ void shared(nvbench::state &state) {
 }
 NVBENCH_BENCH(shared).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
                                            8192, 16384});
+
+void shared_32(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  float *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_shared_32((const float *)A, (const float *)B, C, M, K, N, &args);
+  });
+
+  free_matrices(A, B, C);
+}
+NVBENCH_BENCH(shared_32).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                              8192, 16384});
 
 void rf_block(nvbench::state &state) {
   const auto N = state.get_int64("N");

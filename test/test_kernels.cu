@@ -2,6 +2,7 @@
 #include "../src/kernels/cuda_coalesced.h"
 #include "../src/kernels/cuda_rf_block.h"
 #include "../src/kernels/cuda_shared.h"
+#include "../src/kernels/cuda_shared_32.h"
 #include "../src/kernels/cuda_tensor_core.h"
 #include "../src/kernels/types.h"
 #include <cuda_runtime.h>
@@ -248,6 +249,7 @@ int main(void) {
       {"naive", multiply_cuda_naive},
       {"coalesced", multiply_cuda_coalesced},
       {"shared", multiply_cuda_shared},
+      {"shared_32", multiply_cuda_shared_32},
       {"rf_block", multiply_cuda_rf_block},
       {"tensor_core", multiply_cuda_tensor_core},
   };
