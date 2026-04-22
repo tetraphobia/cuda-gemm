@@ -246,3 +246,159 @@ void cublas_bench(nvbench::state &state) {
 }
 NVBENCH_BENCH(cublas_bench)
     .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DOUBLE PRECISION BENCHMARKS
+// ═══════════════════════════════════════════════════════════════════════════
+
+static void alloc_and_init_double(double **d_A, double **d_B, double **d_C, size_t M,
+                                  size_t K, size_t N) {
+  double *h_A = (double *)malloc(sizeof(double) * M * K);
+  double *h_B = (double *)malloc(sizeof(double) * K * N);
+
+  init_matrix_double(h_A, M * K);
+  init_matrix_double(h_B, K * N);
+
+  cudaMalloc(d_A, sizeof(double) * M * K);
+  cudaMalloc(d_B, sizeof(double) * K * N);
+  cudaMalloc(d_C, sizeof(double) * M * N);
+
+  cudaMemcpy(*d_A, h_A, sizeof(double) * M * K, cudaMemcpyHostToDevice);
+  cudaMemcpy(*d_B, h_B, sizeof(double) * K * N, cudaMemcpyHostToDevice);
+  cudaMemset(*d_C, 0, sizeof(double) * M * N);
+
+  free(h_A);
+  free(h_B);
+}
+
+static void free_matrices_double(double *d_A, double *d_B, double *d_C) {
+  cudaFree(d_A);
+  cudaFree(d_B);
+  cudaFree(d_C);
+}
+
+void naive_double(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_naive_double((const double *)A, (const double *)B, C, M, K, N, &args);
+  });
+
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(naive_double).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                                  8192, 16384});
+
+void coalesced_double(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_coalesced_double((const double *)A, (const double *)B, C, M, K, N, &args);
+  });
+
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(coalesced_double).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
+                                                      4096, 8192, 16384});
+
+void shared_double(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_shared_double((const double *)A, (const double *)B, C, M, K, N, &args);
+  });
+
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(shared_double).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                                   8192, 16384});
+
+void shared_32_double(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_shared_32_double((const double *)A, (const double *)B, C, M, K, N, &args);
+  });
+
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(shared_32_double).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096,
+                                                      8192, 16384});
+
+void rf_block_double(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  kernel_args_t args = KERNEL_ARGS_DEFAULT;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  state.exec([&](nvbench::launch &launch) {
+    args.stream = launch.get_stream();
+    multiply_cuda_rf_block_double((const double *)A, (const double *)B, C, M, K, N, &args);
+  });
+
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(rf_block_double).add_int64_axis("N", {64, 128, 256, 512, 1024, 2048,
+                                                     4096, 8192, 16384});
+
+void cublas_double_bench(nvbench::state &state) {
+  const auto N = state.get_int64("N");
+  const auto M = N;
+  const auto K = N;
+
+  double *A, *B, *C;
+  alloc_and_init_double(&A, &B, &C, M, K, N);
+
+  cublasHandle_t handle;
+  cublasCreate(&handle);
+
+  double alpha = 1.0;
+  double beta = 0.0;
+
+  // Warmup
+  cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K,
+              &beta, C, N);
+  cudaDeviceSynchronize();
+
+  state.exec([&](nvbench::launch &launch) {
+    cublasSetStream(handle, launch.get_stream());
+    cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, B, N, A, K,
+                &beta, C, N);
+  });
+
+  cublasDestroy(handle);
+  free_matrices_double(A, B, C);
+}
+NVBENCH_BENCH(cublas_double_bench)
+    .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384});

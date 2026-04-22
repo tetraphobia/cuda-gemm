@@ -10,13 +10,14 @@
  *
  * Uses coalesced memory accesses for improved memory bandwidth utilization.
  */
-__global__ void _coalesced_kernel(const float *A, const float *B, float *C, int m,
-                              int k, int n) {
+template <typename T>
+__global__ void _coalesced_kernel(const T *A, const T *B, T *C, int m,
+                                  int k, int n) {
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   int col = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (row < m && col < n) {
-    float sum = 0.0f;
+    T sum = T(0);
 
     for (int i = 0; i < k; i++) {
       sum += A[row * k + i] * B[i * n + col];
@@ -26,9 +27,9 @@ __global__ void _coalesced_kernel(const float *A, const float *B, float *C, int 
   }
 }
 
-void multiply_cuda_coalesced(const float *A, const float *B, float *C, int m, int k,
-                         int n, kernel_args_t *args) {
-
+template <typename T>
+static void multiply_cuda_coalesced_impl(const T *A, const T *B, T *C, int m, int k,
+                                         int n, kernel_args_t *args) {
   dim3 block(TILE_M, TILE_N);
   dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
 
@@ -41,4 +42,14 @@ void multiply_cuda_coalesced(const float *A, const float *B, float *C, int m, in
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
     printf("Kernel launch error: %s\n", cudaGetErrorString(err));
+}
+
+void multiply_cuda_coalesced(const float *A, const float *B, float *C, int m, int k,
+                             int n, kernel_args_t *args) {
+  multiply_cuda_coalesced_impl(A, B, C, m, k, n, args);
+}
+
+void multiply_cuda_coalesced_double(const double *A, const double *B, double *C, int m, int k,
+                                    int n, kernel_args_t *args) {
+  multiply_cuda_coalesced_impl(A, B, C, m, k, n, args);
 }

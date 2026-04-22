@@ -12,10 +12,11 @@
  * Uses 32x32 tiles (1024 threads per block).
  * Assumes all matrices are 1D arrays with row-major ordering.
  */
-__global__ void _shared_32_kernel(const float *A, const float *B, float *C,
+template <typename T>
+__global__ void _shared_32_kernel(const T *A, const T *B, T *C,
                                   int m, int k, int n) {
-  __shared__ float shared_A[TILE_M][TILE_K];
-  __shared__ float shared_B[TILE_K][TILE_N];
+  __shared__ T shared_A[TILE_M][TILE_K];
+  __shared__ T shared_B[TILE_K][TILE_N];
 
   int globalRow = blockIdx.y * TILE_M + threadIdx.y;
   int globalCol = blockIdx.x * TILE_N + threadIdx.x;
@@ -23,18 +24,18 @@ __global__ void _shared_32_kernel(const float *A, const float *B, float *C,
   int row = threadIdx.y;
   int col = threadIdx.x;
 
-  float sum = 0.0f;
+  T sum = T(0);
 
   for (int t = 0; t < (k + TILE_K - 1) / TILE_K; t++) {
 
     // Load both tiles into shared memory
     int aRow = globalRow;
     int aCol = t * TILE_K + col;
-    shared_A[row][col] = (aRow < m && aCol < k) ? A[aRow * k + aCol] : 0.0f;
+    shared_A[row][col] = (aRow < m && aCol < k) ? A[aRow * k + aCol] : T(0);
 
     int bRow = t * TILE_K + row;
     int bCol = globalCol;
-    shared_B[row][col] = (bRow < k && bCol < n) ? B[bRow * n + bCol] : 0.0f;
+    shared_B[row][col] = (bRow < k && bCol < n) ? B[bRow * n + bCol] : T(0);
 
     __syncthreads();
 
@@ -50,8 +51,9 @@ __global__ void _shared_32_kernel(const float *A, const float *B, float *C,
     C[globalRow * n + globalCol] = sum;
 }
 
-void multiply_cuda_shared_32(const float *A, const float *B, float *C, int m,
-                             int k, int n, kernel_args_t *args) {
+template <typename T>
+static void multiply_cuda_shared_32_impl(const T *A, const T *B, T *C, int m,
+                                         int k, int n, kernel_args_t *args) {
   dim3 block(TILE_N, TILE_M);
   dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
 
@@ -63,4 +65,14 @@ void multiply_cuda_shared_32(const float *A, const float *B, float *C, int m,
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
     printf("Shared 32x32 kernel launch error: %s\n", cudaGetErrorString(err));
+}
+
+void multiply_cuda_shared_32(const float *A, const float *B, float *C, int m,
+                             int k, int n, kernel_args_t *args) {
+  multiply_cuda_shared_32_impl(A, B, C, m, k, n, args);
+}
+
+void multiply_cuda_shared_32_double(const double *A, const double *B, double *C, int m,
+                                    int k, int n, kernel_args_t *args) {
+  multiply_cuda_shared_32_impl(A, B, C, m, k, n, args);
 }
