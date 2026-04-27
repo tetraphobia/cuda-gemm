@@ -17,10 +17,11 @@
  *
  * Assumes all matrices are 1D arrays with row-major ordering.
  */
-__global__ void _rf_block_kernel(const float *A, const float *B, float *C,
+template <typename T>
+__global__ void _rf_block_kernel(const T *A, const T *B, T *C,
                                  int m, int k, int n) {
-  __shared__ float As[TILE_M][TILE_K];
-  __shared__ float Bs[TILE_K][TILE_N];
+  __shared__ T As[TILE_M][TILE_K];
+  __shared__ T Bs[TILE_K][TILE_N];
   // TODO: This needs another pass to make sure everything is correct.
 
   // Thread indices within block
@@ -36,10 +37,10 @@ __global__ void _rf_block_kernel(const float *A, const float *B, float *C,
   int colBase = blockCol + thread_x * THREADS_PER_COL;
 
   // Register accumulation
-  float acc[THREADS_PER_ROW][THREADS_PER_COL];
+  T acc[THREADS_PER_ROW][THREADS_PER_COL];
   for (int i = 0; i < THREADS_PER_ROW; ++i)
     for (int j = 0; j < THREADS_PER_COL; ++j)
-      acc[i][j] = 0.0f;
+      acc[i][j] = T(0);
 
   // Loop over K tiles
   for (int kt = 0; kt < k; kt += TILE_K) {
@@ -49,7 +50,7 @@ __global__ void _rf_block_kernel(const float *A, const float *B, float *C,
       int r = rowBase + i;
       int c = kt + thread_x;
       As[thread_y * THREADS_PER_ROW + i][thread_x] =
-          (r < m && c < k) ? A[r * k + c] : 0.0f;
+          (r < m && c < k) ? A[r * k + c] : T(0);
     }
 
     // Cooperative load B tile
@@ -57,19 +58,19 @@ __global__ void _rf_block_kernel(const float *A, const float *B, float *C,
       int r = kt + thread_y;
       int c = colBase + j;
       Bs[thread_y][thread_x * THREADS_PER_COL + j] =
-          (r < k && c < n) ? B[r * n + c] : 0.0f;
+          (r < k && c < n) ? B[r * n + c] : T(0);
     }
 
     __syncthreads();
 
     // Compute register block
     for (int k = 0; k < TILE_K; ++k) {
-      float aReg[THREADS_PER_ROW];
+      T aReg[THREADS_PER_ROW];
       for (int i = 0; i < THREADS_PER_ROW; ++i)
         aReg[i] = As[thread_y * THREADS_PER_ROW + i][k];
 
       for (int j = 0; j < THREADS_PER_COL; ++j) {
-        float b = Bs[k][thread_x * THREADS_PER_COL + j];
+        T b = Bs[k][thread_x * THREADS_PER_COL + j];
         for (int i = 0; i < THREADS_PER_ROW; ++i)
           acc[i][j] += aReg[i] * b;
       }
@@ -91,9 +92,9 @@ __global__ void _rf_block_kernel(const float *A, const float *B, float *C,
   }
 }
 
-void multiply_cuda_rf_block(const float *A, const float *B, float *C, int m,
-                            int k, int n, kernel_args_t *args) {
-
+template <typename T>
+static void multiply_cuda_rf_block_impl(const T *A, const T *B, T *C, int m,
+                                        int k, int n, kernel_args_t *args) {
   dim3 block(TILE_M / THREADS_PER_ROW, TILE_N / THREADS_PER_COL);
   dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
 
@@ -106,4 +107,14 @@ void multiply_cuda_rf_block(const float *A, const float *B, float *C, int m,
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
     printf("Kernel launch error: %s\n", cudaGetErrorString(err));
+}
+
+void multiply_cuda_rf_block(const float *A, const float *B, float *C, int m,
+                            int k, int n, kernel_args_t *args) {
+  multiply_cuda_rf_block_impl(A, B, C, m, k, n, args);
+}
+
+void multiply_cuda_rf_block_double(const double *A, const double *B, double *C, int m,
+                                   int k, int n, kernel_args_t *args) {
+  multiply_cuda_rf_block_impl(A, B, C, m, k, n, args);
 }

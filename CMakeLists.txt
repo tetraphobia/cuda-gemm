@@ -18,32 +18,52 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(benchmark
   benchmarks/benchmark.cu
   src/kernels/cpu_naive.cpp
-  src/kernels/cuda_cougar.cu
   src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
-  src/kernels/cuda_shuffle.cu
-  src/kernels/cuda_shuffle_systolic.cu
-  src/kernels/cuda_shuffle_nonshared.cu
-  src/kernels/cuda_shuffle_claude.cu
+  src/kernels/cuda_shared_32.cu
+  src/kernels/cuda_tensor_core.cu
+  src/shared/matrix_utils.cpp
+)
+
+add_executable(benchmark_lineinfo
+  benchmarks/benchmark.cu
+  src/kernels/cpu_naive.cpp
+  src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
+  src/kernels/cuda_rf_block.cu
+  src/kernels/cuda_shared.cu
+  src/kernels/cuda_shared_32.cu
+  src/kernels/cuda_tensor_core.cu
   src/shared/matrix_utils.cpp
 )
 
 add_executable(test
   test/test_kernels.cu
   src/kernels/cpu_naive.cpp
-  src/kernels/cuda_cougar.cu
   src/kernels/cuda_naive.cu
+  src/kernels/cuda_coalesced.cu
   src/kernels/cuda_rf_block.cu
   src/kernels/cuda_shared.cu
-  src/kernels/cuda_shuffle_nonshared.cu
-  src/kernels/cuda_shuffle.cu
-  src/kernels/cuda_shuffle_systolic.cu
-  src/kernels/cuda_shuffle_claude.cu
+  src/kernels/cuda_shared_32.cu
+  src/kernels/cuda_tensor_core.cu
 )
 
 target_compile_options(benchmark PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr> # make cutlass shut up
+)
+set_target_properties(benchmark PROPERTIES CUDA_ARCHITECTURES "native")
+set_target_properties(test PROPERTIES CUDA_ARCHITECTURES "native")
+
+target_compile_options(benchmark_lineinfo PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo --expt-relaxed-constexpr> # make cutlass shut up AND compile with lineinfo for nsight
+)
+set_target_properties(benchmark_lineinfo PROPERTIES CUDA_ARCHITECTURES "native")
+
+add_custom_target(lineinfo
+    DEPENDS benchmark_lineinfo
+    COMMENT "Build with -lineinfo for Nsight profiling"
 )
 
 target_link_libraries(benchmark
@@ -52,3 +72,8 @@ target_link_libraries(benchmark
     CUDA::cublas
 )
 
+target_link_libraries(benchmark_lineinfo
+    nvbench::main
+    nvidia::cutlass::cutlass
+    CUDA::cublas
+)

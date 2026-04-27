@@ -14,13 +14,14 @@
  * Matrix `B` should have `k` rows and `n` columns.
  * Resulting matrix `C` should have `m` rows and `n` columns.
  */
-__global__ void _naive_kernel(const float *A, const float *B, float *C, int m,
+template <typename T>
+__global__ void _naive_kernel(const T *A, const T *B, T *C, int m,
                               int k, int n) {
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
+  int row = blockIdx.x * blockDim.x + threadIdx.x;
+  int col = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (row < m && col < n) {
-    float sum = 0.0f;
+    T sum = T(0);
 
     for (int i = 0; i < k; i++) {
       sum += A[row * k + i] * B[i * n + col];
@@ -30,11 +31,11 @@ __global__ void _naive_kernel(const float *A, const float *B, float *C, int m,
   }
 }
 
-void multiply_cuda_naive(const float *A, const float *B, float *C, int m, int k,
-                         int n, kernel_args_t *args) {
-
+template <typename T>
+static void multiply_cuda_naive_impl(const T *A, const T *B, T *C, int m, int k,
+                                     int n, kernel_args_t *args) {
   dim3 block(TILE_M, TILE_N);
-  dim3 grid((n + TILE_N - 1) / TILE_N, (m + TILE_M - 1) / TILE_M);
+  dim3 grid((m + TILE_M - 1) / TILE_M, (n + TILE_N - 1) / TILE_N);
 
   if (args->stream != NULL) {
     _naive_kernel<<<grid, block, 0, args->stream>>>(A, B, C, m, k, n);
@@ -45,4 +46,14 @@ void multiply_cuda_naive(const float *A, const float *B, float *C, int m, int k,
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess)
     printf("Kernel launch error: %s\n", cudaGetErrorString(err));
+}
+
+void multiply_cuda_naive(const float *A, const float *B, float *C, int m, int k,
+                         int n, kernel_args_t *args) {
+  multiply_cuda_naive_impl(A, B, C, m, k, n, args);
+}
+
+void multiply_cuda_naive_double(const double *A, const double *B, double *C, int m, int k,
+                                int n, kernel_args_t *args) {
+  multiply_cuda_naive_impl(A, B, C, m, k, n, args);
 }

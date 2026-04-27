@@ -11,6 +11,14 @@ void init_matrix(float *A, int size) {
   }
 }
 
+void init_matrix_double(double *A, int size) {
+  srandom(time(NULL));
+
+  for (int i = 0; i < size; i++) {
+    A[i] = rand() % 20; // Will be skewed but doesn't matter.
+  }
+}
+
 void clear_matrix(float *A, int size) {
   for (int i = 0; i < size; i++) {
     A[i] = 0;
