@@ -184,35 +184,6 @@ void tensor_core(nvbench::state &state) {
 NVBENCH_BENCH(tensor_core)
     .add_int64_axis("N", {64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384});
 
-void shuffle_nonshared(nvbench::state &state) {
-  float *A, *B, *C;
-  kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
-
-  state.exec([&](nvbench::launch &launch) {
-    args.stream = launch.get_stream();
-    multiply_warp_shuffle_nonshared((const float *)A, (const float *)B, C, M, K,
-                                    N, &args);
-  });
-
-  free_matrices(A, B, C);
-}
-// NVBENCH_BENCH(shuffle_nonshared);
-
-void shuffle_systolic(nvbench::state &state) {
-  float *A, *B, *C;
-  kernel_args_t args = KERNEL_ARGS_DEFAULT;
-  alloc_and_init(&A, &B, &C);
-
-  state.exec([&](nvbench::launch &launch) {
-    args.stream = launch.get_stream();
-    multiply_warp_shuffle_systolic((const float *)A, (const float *)B, C, M, K,
-                                   N, &args);
-  });
-
-  free_matrices(A, B, C);
-}
-// NVBENCH_BENCH(shuffle_systolic);
 
 void cutlass_bench(nvbench::state &state) {
   const auto N = state.get_int64("N");
